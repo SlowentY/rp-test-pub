@@ -1,24 +1,15 @@
-#include <math.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
+#include "sdrapi.h"
 #include "rp.h"
 #include "rp_asg_axi.h"
 
-int main(int argc, char **argv) {
+int genSignal(float* buffer, uint32_t bsize, uint32_t dec_factor, uint32_t num_buffers) {
 
     // Select channel
     rp_channel_t channel = RP_CH_1;
 
-    // Data size in samples (16 bit)
-    uint32_t bufferSize = 4096;             // Should be twice the actual number of samples
-    uint32_t dec_factor = 1;
-    uint32_t num_buffers = 1;
-
-    uint32_t ncyc = 2;
-    uint32_t nor = 2;
+    uint32_t bufferSize = bsize * 2;
+    uint32_t ncyc = 1;
+    uint32_t nor = 1;
     uint32_t period = 100;
 
     // Start addresses of buffers must be multiple of 4096 (DDR page size)
@@ -79,18 +70,6 @@ int main(int argc, char **argv) {
     // Define output waveform for both channels
     bufferSize /= 2;                // Samples are float32 which is 4 bytes, int16 is 2 bytes
 
-
-    float *t = (float *)malloc(bufferSize * sizeof(float));
-    float *x = (float *)malloc(bufferSize * sizeof(float));
-
-    for (uint32_t i = 1; i < bufferSize; i++) {
-        t[i] = (2 * M_PI) / bufferSize * i;
-    }
-
-    for (uint32_t i = 0; i < bufferSize; ++i) {
-        x[i] = sin(t[i]) + ((1.0 / 3.0) * sin(t[i] * 3));
-    }
-
     // Configure calibration and offset
     rp_GenSetAmplitudeAndOffsetOrigin(channel);
 
@@ -99,16 +78,36 @@ int main(int argc, char **argv) {
     rp_GenBurstCount(channel, ncyc);
     rp_GenBurstRepetitions(channel, nor);
     rp_GenBurstPeriod(channel, period);
-    rp_GenAxiWriteWaveform(channel, x, bufferSize);
+    rp_GenAxiWriteWaveform(channel, buffer, bufferSize);
 
     rp_GenOutEnable(channel);
     rp_GenTriggerOnly(channel);
 
     // Release resources
-    free(t);
-    free(x);
+    free(buffer);
 
     rp_Release();
 
     return 0;
+}
+
+int setGPIO(uint8_t pinout)
+{
+    if (rp_Init() != RP_OK) {
+        fprintf(stderr, "Red Pitaya API init failed!\n");
+        return -1;
+    }
+
+    for(int i = 0; i < 8; i++)
+    {
+        uint8_t pin = 1 << i;
+        if(pinout & pin) {
+            rp_DpinSetState(i+RP_DIO0_N, RP_HIGH);
+        }
+        else {
+            rp_DpinSetState(i+RP_DIO0_N, RP_HIGH);
+        }
+    }
+
+    rp_Release();
 }
