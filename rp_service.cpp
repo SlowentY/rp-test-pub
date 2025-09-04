@@ -4,7 +4,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-int serviceHandler(uint8_t* buf, size_t bufsize, int sock)
+int serviceHandler( int sock, uint8_t* buf, size_t bufsize)
 {
     uint8_t command = 0;
     memcpy(&command, buf, sizeof(uint8_t));
@@ -38,6 +38,8 @@ int serviceHandler(uint8_t* buf, size_t bufsize, int sock)
         }
 
         genSignal(fbuffer, fbsize * 2, dec_factor, num_buffers);
+        buf[0] = SDR_SIG;
+        send(sock, buf, 1, 0);
     }
     else if(command == SDR_GPIO)
     {
@@ -51,5 +53,53 @@ int serviceHandler(uint8_t* buf, size_t bufsize, int sock)
 
 int main()
 {
+    if(argc < 1)
+    {                                                                                                                                                                                                                                                                               
+            fprintf(stderr, "Invalid argc!\n");
+            return -1;
+    }                                                                                                                                                                                                                                                                               
+                                                                                                                                                                                                                                                                                    
+    int sock,  listener;
+    struct sockaddr_in addr;
+    char buf[1024];
+    int bytes_read;
+                                                                                                                                                                                                                                                                                    
+    listener = socket(AF_INET, SOCK_STREAM, 0);
+    if(listener < 0)
+    {                                                                                                                                                                                                                                                                               
+            fprintf(stderr, "Socket error!\n");
+            return -1;
+    }                                                                                                                                                                                                                                                                               
+                                                                                                                                                                                                                                                                                    
+    int port = atoi(argv[0])
+                                                                                                                                                                                                                                                                                    
+    addr.sin_family = AF_INET;                                                                                                                                                                                                                                                      
+    addr.sin_port = htons(port);                                                                                                                                                                                                                                                    
+    addr.sin_addr.s_addr = htonl(INADDR_ANY)                                                                                                                                                                                                                                        
+    if(bind(listener, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+    {                                                                                                                                                                                                                                                                               
+            fprintf(stderr, "Bind error!\n");
+            return -1;
+    }                                                                                                                                                                                                                                                                               
+                                                                                                                                                                                                                                                                                    
+    listen(listener, 1);
+
+    while(true)
+    {                                                                                                                                                                                                                                                                               
+        sock = accept(listener, NULL, NULL);
+        if(sock < 0)
+        {                                                                                                                                                                                                                                                                       
+                fprintf(stderr, "Accept error!\n");
+                return -1;
+        }                                                                                                                                                                                                                                                                       
+                                                                                                                                                                                                                                                                                
+        while(true)
+        {                                                                                                                                                                                                                                                                       
+                bytes_read = recv(sock, buf, 1024, 0);
+                if(bytes_read <= 0) break;
+                serviceHandler(sock, buf, bytes_read);                                                                                                                                                                                                                             
+        }                                                                                                                                                                                                                                                                       
+    } 
+
     return 0;
 }
